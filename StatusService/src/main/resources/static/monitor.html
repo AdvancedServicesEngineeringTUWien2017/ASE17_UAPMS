@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Monitor</title>
+    <meta name="viewport" content="initial-scale=1.0, user-scalable=no">
+    <meta charset="utf-8">
+    <style>
+        /* Always set the map height explicitly to define the size of the div
+         * element that contains the map. */
+        #map {
+            height: 100%;
+        }
+        /* Optional: Makes the sample page fill the window. */
+        html, body {
+            height: 100%;
+            margin: 0;
+            padding: 0;
+        }
+    </style>
+    <!-- Latest compiled and minified CSS -->
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css" integrity="sha384-BVYiiSIFeK1dGmJRAkycuHAHRg32OmUcww7on3RYdg4Va+PmSTsz/K68vbdEjh4u" crossorigin="anonymous">
+
+    <!-- Optional theme -->
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap-theme.min.css" integrity="sha384-rHyoN1iRsVXV4nD0JutlnGaslCJuC7uwjduW9SVrLvRYooPp2bWYgmgJQIXwl/Sp" crossorigin="anonymous">
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
+    <!-- Latest compiled and minified JavaScript -->
+    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js" integrity="sha384-Tc5IQib027qvyjSMfHjOMaLkfuWVxZxUPnCJA7l2mCWNIpG9mGCD8wGNIcPD7Txa" crossorigin="anonymous"></script>
+
+</head>
+<body>
+<div>
+    <h1>Monitor</h1>
+    <form id="myForm" class="form-inline">
+        <div class="form-group">
+            <div class="radio">
+                <label>
+                    <input type="radio" name="optionsRadios" id="radioStatus" value="status" checked>
+                    Status
+                </label>
+            </div>
+        </div>
+        <div class="form-group">
+            <div class="radio">
+                <label>
+                    <input type="radio" name="optionsRadios" id="radioArea" value="area">
+                    Area
+                </label>
+            </div>
+        </div>
+    </form>
+</div>
+<div id="map"></div>
+<script>
+    var currentMarker = [];
+
+    function initMap() {
+        var map = new google.maps.Map(document.getElementById('map'), {
+            center: {lat: 48.209741492949, lng: 16.3681873478314},
+            zoom: 15
+        });
+        var previousMode = "";
+        var uuidMarkerMap = new Map();
+        var colorMap = new Map();
+        var colorIndex = 0;
+
+        var imageTaken = 'red-small.png';
+        var imageFree = 'green-small.png';
+
+        var intervalId;
+
+        var first = true;
+
+        intervalId = setInterval(function () {
+            $.get("/all", function (data) {
+
+                var displayMode = $('input[name=optionsRadios]:checked', '#myForm').val();
+
+                $.each(data.entries, function (index, entry) {
+                    var entryIcon = "";
+                    if(displayMode == "status"){
+                        entryIcon = entry.status == "FREE" ? imageFree : imageTaken;
+                    } else{
+                        var myIndex = -1;
+                        if(!colorMap.has(entry.source)){
+                            myIndex = colorIndex;
+                            colorIndex++;
+                            colorMap.set(entry.source, myIndex);
+                        } else{
+                            myIndex = colorMap.get(entry.source);
+                        }
+                        entryIcon = "g"+myIndex+".png";
+                    }
+
+                    if(! uuidMarkerMap.has(entry.uniqueIdentifier)){
+                        // not marker created yet!
+
+                        var latLng = new google.maps.LatLng(entry.latitude, entry.longitude);
+                        //coords.push( {lat: entry.latitude, lng: entry.longitude});
+                        var marker = new google.maps.Marker({
+                            position: latLng,
+                            map: map,
+                            icon: entryIcon,
+                            title: entry.uniqueIdentifier + "  ("+entry.latitude + " , " + entry.longitude+ ")"
+                        });
+
+                        var mapEntry = {status: entry.status, mapMarker: marker};
+                        uuidMarkerMap.set(entry.uniqueIdentifier, mapEntry);
+                    } else{
+                        var mapEntry = uuidMarkerMap.get(entry.uniqueIdentifier);
+
+                        if(mapEntry.status != entry.status || previousMode != displayMode){
+                            mapEntry.mapMarker.setIcon(entryIcon);
+                            mapEntry.status = entry.status;
+                            uuidMarkerMap.set(entry.uniqueIdentifier, mapEntry);
+                        }
+                    }
+                });
+                previousMode = displayMode;
+            });
+        },1000);
+    }
+</script>
+<script src="https://maps.googleapis.com/maps/api/js?key=<key>=visualization&callback=initMap"
+        async defer></script>
+</body>
+</html>

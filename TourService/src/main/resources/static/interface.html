@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Tour Service</title>
+    <meta name="viewport" content="initial-scale=1.0, user-scalable=no">
+    <meta charset="utf-8">
+    <style>
+      /* Always set the map height explicitly to define the size of the div
+       * element that contains the map. */
+      #map {
+        height: 100%;
+      }
+      /* Optional: Makes the sample page fill the window. */
+      html, body {
+        height: 100%;
+        margin: 0;
+        padding: 0;
+      }
+    </style>
+    <!-- Latest compiled and minified CSS -->
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css" integrity="sha384-BVYiiSIFeK1dGmJRAkycuHAHRg32OmUcww7on3RYdg4Va+PmSTsz/K68vbdEjh4u" crossorigin="anonymous">
+
+    <!-- Optional theme -->
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap-theme.min.css" integrity="sha384-rHyoN1iRsVXV4nD0JutlnGaslCJuC7uwjduW9SVrLvRYooPp2bWYgmgJQIXwl/Sp" crossorigin="anonymous">
+
+    <!-- Latest compiled and minified JavaScript -->
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
+    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js" integrity="sha384-Tc5IQib027qvyjSMfHjOMaLkfuWVxZxUPnCJA7l2mCWNIpG9mGCD8wGNIcPD7Txa" crossorigin="anonymous"></script>
+    <script src="bootstrap-notify.min.js"></script>
+  </head>
+  <body>
+  <div>
+    <form id="myForm" class="form-inline">
+      <div class="form-group">
+        <label for="latitude">Latitude</label>
+        <input type="text" class="form-control" id="latitude" placeholder="Latitude" value="48.209741492949">
+      </div>
+      <div class="form-group">
+        <label for="longitude">Longitude</label>
+        <input type="text" class="form-control" id="longitude" placeholder="Longitude" value="16.3681873478314">
+      </div>
+      <div class="form-group">
+        <label for="range">Range</label>
+        <input type="text" class="form-control" id="range" placeholder="Range (meters)" value="100">
+      </div>
+      <div class="form-group">
+        <label for="qualselect">Quality</label>
+        <select class="form-control" id="qualselect">
+          <option>LOW</option>
+          <option>MEDIUM</option>
+          <option>HIGH</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label for="priorselect">Priority</label>
+        <select class="form-control" id="priorselect">
+          <option>LOW</option>
+          <option>MEDIUM</option>
+          <option>HIGH</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label for="timeout">Timeout</label>
+        <input type="number" class="form-control" id="timeout" placeholder="Timeout (seconds)" value="5">
+      </div>
+      <button class="btn btn-default" type="button" id="mybutton">Query</button>
+    </form>
+  </div>
+    <div id="map"></div>
+    <script>    
+      var currentMarker = [];
+      var currentPath = null;
+      var currentCircle = null;
+
+      function initMap() {
+        var map = new google.maps.Map(document.getElementById('map'), {
+          center: {lat: 48.209741492949, lng: 16.3681873478314},
+          zoom: 15
+        });
+
+          var imageTaken = 'red-small.png';
+          var imageFree = 'green-small.png';
+
+        $("#mybutton").click(function (x) {
+
+
+
+            var lat = $("#latitude").val();
+            var lng = $("#longitude").val();
+            var range = $("#range").val();
+            var quality = $("#qualselect").val();
+            var priority = $("#priorselect").val();
+            var timeout = $("#timeout").val();
+
+            var notify = $.notify(String.format('Created Request: <strong>({0},{1})</strong> within <strong>{2} m</strong> quality = {3} priority = {4}, timeout = <strong>{5}</strong>',lat,lng,range,quality,priority,timeout), { allow_dismiss: false });
+
+            var obj = { latitude: lat, longitude: lng, range: range, quality: quality, priority: priority, timeout: timeout };
+            $.each(currentMarker, function (index, entry) {
+                entry.setMap(null);
+            });
+            if(currentPath != null){
+                currentPath.setMap(null);
+            }
+
+            if(currentCircle != null){
+                currentCircle.setMap(null);
+            }
+
+            currentMarker = [];
+            $.get("/tour", obj, function (data) {
+                var path = [];
+
+                var notify = $.notify(String.format('Result: cost=<strong>{0}</strong> for {1} nodes, status = {2}',data.cost, data.locations.length, data.statusCode), { allow_dismiss: false });
+
+                $.each(data.locations, function (index, entry) {
+                    var latLng = new google.maps.LatLng(entry.latitude, entry.longitude);
+                    var id = entry.id;
+                    path.push({lat:entry.latitude, lng:entry.longitude});
+                    var marker = new google.maps.Marker({
+                        position: latLng,
+                        map: map,
+                        //icon: entry.status == "FREE" ? imageFree : imageTaken,
+                        title: "  ("+entry.latitude + " , " + entry.longitude+ ")",
+                        label: id
+                    });
+                    currentMarker.push(marker);
+                });
+
+                var mycenter = {lat:Number(lat), lng:Number(lng)};
+                var cityCircle = new google.maps.Circle({
+                    strokeColor: '#FF0000',
+                    strokeOpacity: 0.8,
+                    strokeWeight: 2,
+                    fillColor: '#FF0000',
+                    fillOpacity: 0.1,
+                    center: mycenter,
+                    radius: Number(range)
+                });
+                currentCircle = cityCircle;
+                cityCircle.setMap(map);
+                google.maps.event.addListener(cityCircle, 'click', function (x) {
+                    var latitude = x.latLng.lat();
+                    var longitude = x.latLng.lng();
+                    $("#latitude").val(latitude);
+                    $("#longitude").val(longitude);
+                });
+                path.push(path[0]);
+
+                var tsptour = new google.maps.Polyline({
+                    path: path,
+                    geodesic: true,
+                    strokeColor: '#000000',
+                    strokeOpacity: 1.0,
+                    strokeWeight: 2
+                });
+                tsptour.setMap(map);
+                currentPath = tsptour;
+            });
+        });
+
+          map.addListener('click', function(x) {
+              var latitude = x.latLng.lat();
+              var longitude = x.latLng.lng();
+              $("#latitude").val(latitude);
+              $("#longitude").val(longitude);
+          });
+
+		function drawmarkers(data) {
+
+            coords = [];
+            data.entries.forEach(function (entry) {
+                var latLng = new google.maps.LatLng(entry.latitude, entry.longitude);
+                coords.push( {lat: entry.latitude, lng: entry.longitude});
+                var marker = new google.maps.Marker({
+                    position: latLng,
+                    map: map,
+                    icon: entry.status == "FREE" ? imageFree : imageTaken
+                });
+            });
+
+            var mycenter = {lat:48.209741492949, lng:16.3681873478314};
+            var cityCircle = new google.maps.Circle({
+                strokeColor: '#FF0000',
+                strokeOpacity: 0.8,
+                strokeWeight: 2,
+                fillColor: '#FF0000',
+                fillOpacity: 0.1,
+                center: mycenter,
+                radius: 250
+            });
+            cityCircle.setMap(map);
+        }
+      }
+    </script>
+    <script src="https://maps.googleapis.com/maps/api/js?key=<key>&libraries=visualization&callback=initMap"
+         async defer></script>
+  </body>
+</html>

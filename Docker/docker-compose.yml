@@ -1,0 +1,142 @@
+version: "3"
+services:
+################ POSTGRES DATABASE ################
+  db:
+    build: ./CustomDB
+    environment:
+      - POSTGRES_PASSWORD=123456
+    ports:
+      - "35000:5432"
+  
+################ MONGO DB #########################
+  mongo:
+    image: mongo
+    environment:
+      - MONGODB_DBNAME=local
+    ports:
+      - "35001:27017"
+
+################ RABBIT MQ ########################
+  rabbit:
+    image: rabbitmq
+    ports:
+      - "35002:5672"
+
+################ GATEWAYs #########################
+  iotgateway1:
+    build: ./ClusterMaster
+    environment:
+      - DB_NAME=cm_db1
+      - MYID=9c002812-ce0c-4792-b627-b9a56d3e65fb
+      - MYQUEUE=ase.iotqueue1
+    ports:
+      - "30001:8080"
+    depends_on:
+      - "db"
+      - "rabbit"
+  
+  iotgateway2:
+    build: ./ClusterMaster
+    environment:
+      - DB_NAME=cm_db2
+      - MYID=9c002812-ce0c-4792-b627-b9a56d3e65fc
+      - MYQUEUE=ase.iotqueue2
+    ports:
+      - "30002:8080"
+    depends_on:
+      - "db"
+      - "rabbit"
+
+  iotgateway3:
+    build: ./ClusterMaster
+    environment:
+      - DB_NAME=cm_db3
+      - MYID=9c002812-ce0c-4792-b627-b9a56d3e65fd
+      - MYQUEUE=ase.iotqueue3
+    ports:
+      - "30003:8080"
+    depends_on:
+      - "db"
+      - "rabbit"
+
+  iotgateway4:
+    build: ./ClusterMaster
+    environment:
+      - DB_NAME=cm_db4
+      - MYID=9c002812-ce0c-4792-b627-b9a56d3e65fe
+      - MYQUEUE=ase.iotqueue4
+    ports:
+      - "30004:8080"
+    depends_on:
+      - "db"
+      - "rabbit"
+
+  iotgateway5:
+    build: ./ClusterMaster
+    environment:
+      - DB_NAME=cm_db5
+      - MYID=9c002812-ce0c-4792-b627-b9a56d3e65ff
+      - MYQUEUE=ase.iotqueue5
+    ports:
+      - "30005:8080"
+    depends_on:
+      - "db"
+      - "rabbit"
+
+################ STATUS SERVICE ###################	  
+  statusservice:
+    build: ./StatusService
+    environment:
+      - MYID=1b764e94-b851-4872-86d6-4c10cf8287b8
+      - GATEWAYCOUNT=5
+    ports:
+      - "30010:8080"
+    depends_on:
+      - "rabbit"
+
+################ STATISTICS SERVICE ###############	  
+  statisticsservice:
+    build: ./StatisticsService
+    environment:
+      - MONGODBNAME=statisticsDB
+      - MYID=cf9a630d-58a3-45fb-bcd2-26ba2ab8a90d
+    ports:
+      - "30011:8080"
+    depends_on:
+      - "mongo"
+      - "rabbit"
+
+################ TOUR SERVICE #####################	  
+  tourservice:
+    build: ./TourService
+    environment:
+      - MYID=289cb7f3-2fe3-4147-9b4d-1ea837c125b0
+    ports:
+      - "30012:8080"
+    depends_on:
+      - "rabbit"
+      - "statusservice"
+
+################ TOUR WORKER ######################	  
+  tourworker:
+    build: ./TourWorker
+    deploy:
+      replicas: 4
+      restart_policy:
+        condition: on-failure
+    environment:
+      - MYID=7d231a80-e172-4daa-902f-e17d84f69233
+    depends_on:
+      - "rabbit"
+
+################ EVALUATION TOOL ##################	  
+  evaltool:
+    build: ./EvaluationTool
+    environment:
+      - MONGODBNAME=monitoringDB
+      - MYID=c045752a-4815-4aed-b8e3-200945fe78bd
+    ports:
+      - "30013:8080"
+    depends_on:
+      - "mongo"
+      - "rabbit"
