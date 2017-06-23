@@ -74,6 +74,7 @@ The following figures show screenshots of the implemented UIs:
 The status query UI simply allows a user to select an arbitrary GPS coordinate and to query the status of the parking spots in a certain area. 
 As the screenshot illustrates, this service is similar to a loupe over a map, that allows the user to view the current status of the parking spots. 
 The size of the loupe allows a user to obviously inspect a larger area, increasing in some sense the quality of the data.
+
 ![img](https://github.com/tkauf15k/ASE17_UAPMS/blob/master/Documents/statusquery.png)
 
 2. 
@@ -90,6 +91,7 @@ Finally, just for debugging purposes we provide a monitoring service that polls 
 While the Status View simply displays the current status, the Area View shows by which cluster a parking spots is managed. 
 
 ![img](https://github.com/tkauf15k/ASE17_UAPMS/blob/master/Documents/monitorstatus.png)
+
 ![img](https://github.com/tkauf15k/ASE17_UAPMS/blob/master/Documents/monitorarea.png)
  
 
